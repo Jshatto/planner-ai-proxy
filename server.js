@@ -3,6 +3,7 @@ import express from "express";
 const app = express();
 app.use(express.json({ limit: "200kb" }));
 
+// --- Basic rate limiting (per IP) ---
 const hits = new Map(); // ip -> { count, resetAt }
 
 function rateLimit(req, res, next) {
@@ -26,8 +27,7 @@ function rateLimit(req, res, next) {
   next();
 }
 
-
-// Basic CORS (lock this down to your GitHub Pages URL later)
+// --- Basic CORS (lock down later to your GitHub Pages domain) ---
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -60,8 +60,7 @@ Notes: ${notes || ""}
 Return JSON in this exact format:
 {
   "suggestions": [
-    { "category": "Clothing", "item": "Socks", "qty": 5, "reason": "..." },
-    ...
+    { "category": "Clothing", "item": "Socks", "qty": 5, "reason": "..." }
   ]
 }
 
@@ -72,20 +71,20 @@ Rules:
 - No markdown, no extra keys, JSON only
     `.trim();
 
-    // Call OpenAI Responses API
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Server missing OPENAI_API_KEY" });
 
     const r = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
         model: "gpt-4.1-mini",
         input: prompt,
-        temperature: 0.4
+        temperature: 0.4,
+        max_output_tokens: 800
       })
     });
 
@@ -96,7 +95,6 @@ Rules:
 
     const data = await r.json();
 
-    // Responses API text output extraction (simple approach)
     const text = data.output_text || "";
     let parsed;
     try {
